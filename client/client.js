@@ -1573,6 +1573,18 @@ window.__ModuleLoader__.load({
     //#endregion
 
     //#region debug panel
+    /** 存档状态：会话键、键是否存在、长度；排查「重启后丢了」用。 */
+    function storageReport() {
+      const key = `${STORAGE_PREFIX}${activeKey}`
+      const label = activeKey === '' ? '(会话未知)' : activeKey.slice(-8)
+      try {
+        const raw = window.localStorage.getItem(key)
+        return raw === null ? `无（键 …${label}）` : `有 ${raw.length} 字符（键 …${label}）`
+      } catch {
+        return '读不到 localStorage'
+      }
+    }
+
     /**
      * 隐藏的调试面板：**Ctrl/⌘ + Alt + D** 打开或关闭。
      *
@@ -1666,6 +1678,7 @@ window.__ModuleLoader__.load({
             },
           },
           `锚 ${state.chips.length} 条 · 痕迹 ${state.asked.length} 条 · 提问记录 ${questionRecords.size} 条 · 已贴标记 ${document.querySelectorAll(`[${Q_TAG}]`).length} 个\n` +
+            `存档 ${storageReport()}\n` +
             `定位 ${located === '' ? '（暂无锚点）' : located}`,
         ),
         error !== '' ? h('div', { style: { color: '#c0392b' } }, error) : null,
