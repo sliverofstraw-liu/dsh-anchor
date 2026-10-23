@@ -1,0 +1,43 @@
+{
+  "name": "dsh-anchor",
+  "version": "0.1.0",
+  "description": "Read-to-question anchoring for DeepSeek Harness: ask in place, come back in one click.",
+  "type": "module",
+  "main": "lib/index.js",
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek",
+    "harness",
+    "anchor",
+    "reading"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sliverofstraw-liu/dsh-anchor.git"
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "slots"
+      ]
+    }
+  },
+  "files": [
+    "lib",
+    "client",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ]
+}
