@@ -30,6 +30,8 @@ window.__ModuleLoader__.load({
     const MAX_CHIPS = 3
     const MAX_QUESTIONS = 60
     const SELECT_DELAY = 150
+    /** 全文兜底时，上下文至少要吻合这么多字符才认（前后各算）。 */
+    const MIN_CONTEXT_MATCH = 8
 
     const TRANSCRIPT = '[data-conversation-scroll]'
     const CHAT_NODE = '[data-slot="conversation.chat.node"]'
@@ -423,8 +425,12 @@ window.__ModuleLoader__.load({
       if (needle.length > 24) attempts.push(24)
       if (needle.length > 12) attempts.push(12)
 
-      /** 在一个容器里按「整段 → 前缀」依次尝试，命中多个时用上下文/偏移挑一个。 */
-      const search = (scope) => {
+      /**
+       * 在一个容器里按「整段 → 前缀」依次尝试，命中多个时用上下文/偏移挑一个。
+       * @param scope 在哪个容器里找
+       * @param strict 是否要求上下文必须足够吻合（全文兜底时为 true：宁可标不出来，也不标错地方）
+       */
+      const search = (scope, strict) => {
         for (const length of attempts) {
           const hits = findMatches(scope, needle.slice(0, length))
           if (hits.length === 0) continue
@@ -439,8 +445,11 @@ window.__ModuleLoader__.load({
                 bestHit = hit
               }
             }
-            if (bestHit !== null && bestScore > 0) {
+            if (bestHit !== null && bestScore >= (strict ? MIN_CONTEXT_MATCH : 1)) {
               chosen = bestHit
+            } else if (strict) {
+              // 全文里有多处同名、上下文又对不上：判定失败，不猜
+              return null
             } else if (target >= 0) {
               let best = Number.POSITIVE_INFINITY
               for (const hit of hits) {
@@ -459,8 +468,8 @@ window.__ModuleLoader__.load({
       }
 
       // 选定的容器里没找到，就退回整篇正文再试一次——容器可能是按序号取的、
-      // 已经错位了；不退回的话，锚点会显示成 ✗（看起来像「荧光丢了」）。
-      return search(container) ?? (container === root ? null : search(root))
+      // 已经错位了。但全文里必须「上下文对得上」才算数，否则会把旧锚画到别处。
+      return search(container, false) ?? (container === root ? null : search(root, true))
     }
     //#endregion
 
@@ -611,7 +620,32 @@ window.__ModuleLoader__.load({
       emit()
     }
 
-    const store = { subscribe, getSnapshot, addChip, markChipsSent, removeChip, promote, setSession, toggleHidden }
+    /** 清空当前会话的所有锚点、痕迹与提问记录，并通知宿主清空。 */
+    function clearAll() {
+      buckets.clear()
+      questionRecords.clear()
+      pendingQuestionId = null
+      state = bucketOf(activeKey)
+      try {
+        window.localStorage.removeItem(`${STORAGE_PREFIX}${activeKey}`)
+      } catch {
+        /* 清不掉也能继续用 */
+      }
+      emit()
+      clearAnchorOnHost(activeKey)
+    }
+
+    const store = {
+      subscribe,
+      getSnapshot,
+      addChip,
+      markChipsSent,
+      removeChip,
+      promote,
+      setSession,
+      toggleHidden,
+      clearAll,
+    }
     //#endregion
 
     //#region question records
@@ -1670,7 +1704,30 @@ window.__ModuleLoader__.load({
             zIndex: 2147483003,
           },
         },
-        h('div', { style: { fontWeight: 600, marginBottom: 4 } }, `dsh-anchor 调试 · 会话 ${sessions} · Ctrl+Alt+D 关闭`),
+        h(
+          'div',
+          { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 } },
+          h('div', { style: { fontWeight: 600 } }, `dsh-anchor 调试 · 会话 ${sessions} · Ctrl+Alt+D 关闭`),
+          h(
+            'button',
+            {
+              type: 'button',
+              title: '清空本会话的所有锚点、痕迹与提问记录（客户端 + 宿主）',
+              onClick: () => store.clearAll(),
+              style: {
+                border: '1px solid rgba(200,60,50,0.45)',
+                background: 'transparent',
+                color: '#c0392b',
+                cursor: 'pointer',
+                fontSize: 10,
+                lineHeight: '16px',
+                padding: '1px 6px',
+                borderRadius: 6,
+              },
+            },
+            '清空全部',
+          ),
+        ),
         h(
           'div',
           {
