@@ -423,37 +423,44 @@ window.__ModuleLoader__.load({
       if (needle.length > 24) attempts.push(24)
       if (needle.length > 12) attempts.push(12)
 
-      for (const length of attempts) {
-        const hits = findMatches(container, needle.slice(0, length))
-        if (hits.length === 0) continue
-        let chosen = hits[0]
-        if (hits.length > 1) {
-          let bestScore = -1
-          let bestHit = null
-          for (const hit of hits) {
-            const score = contextScore(hit.data.text, hit, entry)
-            if (score > bestScore) {
-              bestScore = score
-              bestHit = hit
-            }
-          }
-          if (bestHit !== null && bestScore > 0) {
-            chosen = bestHit
-          } else if (target >= 0) {
-            let best = Number.POSITIVE_INFINITY
+      /** 在一个容器里按「整段 → 前缀」依次尝试，命中多个时用上下文/偏移挑一个。 */
+      const search = (scope) => {
+        for (const length of attempts) {
+          const hits = findMatches(scope, needle.slice(0, length))
+          if (hits.length === 0) continue
+          let chosen = hits[0]
+          if (hits.length > 1) {
+            let bestScore = -1
+            let bestHit = null
             for (const hit of hits) {
-              const distance = Math.abs(hit.startOffset - target)
-              if (distance < best) {
-                best = distance
-                chosen = hit
+              const score = contextScore(hit.data.text, hit, entry)
+              if (score > bestScore) {
+                bestScore = score
+                bestHit = hit
+              }
+            }
+            if (bestHit !== null && bestScore > 0) {
+              chosen = bestHit
+            } else if (target >= 0) {
+              let best = Number.POSITIVE_INFINITY
+              for (const hit of hits) {
+                const distance = Math.abs(hit.startOffset - target)
+                if (distance < best) {
+                  best = distance
+                  chosen = hit
+                }
               }
             }
           }
+          const range = rangeFromOffsets(chosen.data.nodes, chosen.startOffset, chosen.endOffset)
+          if (range !== null) return range
         }
-        const range = rangeFromOffsets(chosen.data.nodes, chosen.startOffset, chosen.endOffset)
-        if (range !== null) return range
+        return null
       }
-      return null
+
+      // 选定的容器里没找到，就退回整篇正文再试一次——容器可能是按序号取的、
+      // 已经错位了；不退回的话，锚点会显示成 ✗（看起来像「荧光丢了」）。
+      return search(container) ?? (container === root ? null : search(root))
     }
     //#endregion
 
