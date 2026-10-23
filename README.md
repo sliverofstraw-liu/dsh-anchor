@@ -19,18 +19,26 @@ AI 讲一章内容，一次输出几千字。你读到中途冒出一个疑问�
 
 需要 DSH 支持插件（profile 里有 `dsh.profile.bundles` 字段的版本）。
 
+桌面版：
+
 ```bash
-dsh plugin --profile <profile> add github:<你的用户名>/dsh-anchor
+dsh plugin --profile desktop add github:sliverofstraw-liu/dsh-anchor
 ```
 
-`<profile>` 通常是你正在用的那个：桌面版是 `desktop`，`dsh web` 是 `web`。
+用 `dsh web` 启动的网页版，把 `desktop` 换成 `web`：
 
-装完**重启应用**（宿主半边只在启动时加载），页面刷新后生效。
+```bash
+dsh plugin --profile web add github:sliverofstraw-liu/dsh-anchor
+```
+
+装完**重启应用**（宿主半边只在启动时加载），然后刷新页面。
+
+> profile 写错是“装了但没反应”最常见的原因：桌面应用只认 `desktop`，它自己管理这个 profile。
 
 卸载：
 
 ```bash
-dsh plugin --profile <profile> remove dsh-anchor
+dsh plugin --profile desktop remove dsh-anchor
 ```
 
 ## 用法
