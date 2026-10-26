@@ -145,6 +145,24 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /** 提问记录里带着 DOM 引用，落盘前必须剥掉（JSON 序列化会炸）。 */
+    function persistableQuestion(record) {
+      return {
+        id: record.id,
+        quote: record.quote,
+        kind: record.kind,
+        offsetInBlock: record.offsetInBlock,
+        offsetIn: record.offsetIn,
+        offsetInRoot: record.offsetInRoot,
+        context: record.context,
+        position: record.position,
+        messageIndex: record.messageIndex,
+        messageId: record.messageId,
+        userIndex: record.userIndex,
+        at: record.at,
+      }
+    }
+
     function persist() {
       if (activeKey === '') return
       const key = `${STORAGE_PREFIX}${activeKey}`
@@ -160,7 +178,7 @@ window.__ModuleLoader__.load({
           JSON.stringify({
             chips: state.chips.map(persistable),
             asked: state.asked.map(persistable),
-            questions: [...questionRecords.values()].slice(-MAX_QUESTIONS),
+            questions: [...questionRecords.values()].slice(-MAX_QUESTIONS).map(persistableQuestion),
           }),
         )
       } catch {
@@ -200,9 +218,15 @@ window.__ModuleLoader__.load({
           id,
           quote: value.quote,
           kind: value.kind === 'point' ? 'point' : 'quote',
+          element: null,
+          scope: null,
+          offsetInBlock: typeof value.offsetInBlock === 'number' ? value.offsetInBlock : -1,
+          offsetIn: typeof value.offsetIn === 'number' ? value.offsetIn : -1,
           offsetInRoot: typeof value.offsetInRoot === 'number' ? value.offsetInRoot : -1,
           context: typeof value.context === 'string' ? value.context : '',
           position: typeof value.position === 'string' ? value.position : '',
+          messageIndex: typeof value.messageIndex === 'number' ? value.messageIndex : -1,
+          messageId: typeof value.messageId === 'string' ? value.messageId : '',
           userIndex: typeof value.userIndex === 'number' ? value.userIndex : -1,
           at: typeof value.at === 'number' ? value.at : 0,
         })
@@ -598,9 +622,17 @@ window.__ModuleLoader__.load({
           id,
           quote: chip.quote,
           kind: chip.kind,
+          // 记录也要能独立定位：点回答上的图钉回原文时，用的就是它。
+          // 只留全文偏移会让定位退化到最弱的一层。
+          element: chip.element ?? null,
+          scope: chip.scope ?? null,
+          offsetInBlock: chip.offsetInBlock,
+          offsetIn: chip.offsetIn,
           offsetInRoot: chip.offsetInRoot,
           context: chip.context,
           position: chip.position,
+          messageIndex: chip.messageIndex,
+          messageId: chip.messageId,
           userIndex: -1,
           at: Date.now(),
         })
