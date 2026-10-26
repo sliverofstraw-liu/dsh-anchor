@@ -1673,6 +1673,29 @@ window.__ModuleLoader__.load({
     //#endregion
 
     //#region debug panel
+    /**
+     * 这条锚点实际认成了哪一段：把定位到的位置前后各取十几个字。
+     * 排查「荧光跑到别处」时，直接看它就够了，不用肉眼比颜色。
+     */
+    function locatedPreview(range) {
+      try {
+        const element = elementOf(range.startContainer)
+        const message = element === null ? null : element.closest(CHAT_NODE)
+        if (message === null) return range.toString().slice(0, 20)
+        const { nodes, text } = collectText(message)
+        const start = (() => {
+          for (const node of nodes) if (node.node === range.startContainer) return node.start + range.startOffset
+          return -1
+        })()
+        if (start < 0) return range.toString().slice(0, 20)
+        const from = Math.max(0, start - 12)
+        const to = Math.min(text.length, start + range.toString().length + 12)
+        return `${from > 0 ? '…' : ''}${text.slice(from, to).replace(/\s+/g, ' ')}${to < text.length ? '…' : ''}`
+      } catch {
+        return '?'
+      }
+    }
+
     /** 当前底色走的是哪条路：CSS 高亮（画在文字上）还是矩形（跟随滚动重画）。 */
     function highlightReport() {
       if (!supportsHighlights()) return '矩形（浏览器不支持 CSS 高亮）'
@@ -1746,8 +1769,12 @@ window.__ModuleLoader__.load({
       const sessions = data === null ? 0 : data.sessions ?? 0
       const root = document.querySelector(TRANSCRIPT)
       const located = [...state.chips, ...state.asked]
-        .map((entry) => `${root !== null && locateEntry(root, entry) !== null ? '✓' : '✗'}${String(entry.quote).slice(0, 6)}`)
-        .join(' ')
+        .map((entry) => {
+          const range = root === null ? null : locateEntry(root, entry)
+          if (range === null) return `✗${String(entry.quote).slice(0, 6)}`
+          return `✓「${locatedPreview(range)}」`
+        })
+        .join('  ')
 
       return h(
         'div',
