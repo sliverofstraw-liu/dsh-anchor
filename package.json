@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "dsh-anchor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Read-to-question anchoring for DeepSeek Harness: ask in place, come back in one click.",
   "type": "module",
   "main": "lib/index.js",
