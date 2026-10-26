@@ -1298,6 +1298,17 @@ window.__ModuleLoader__.load({
       return lineIcon([h('path', { key: 'chevron', d: 'M6 9.5 12 15l6-5.5' })], size)
     }
 
+    /** EditHere：一个截图框 + 一支笔，和它的用途对得上。 */
+    function EditHereIcon({ size }) {
+      return lineIcon(
+        [
+          h('rect', { key: 'frame', x: 3.5, y: 4.5, width: 17, height: 12, rx: 2.5 }),
+          h('path', { key: 'pen', d: 'M8.2 19.4l6.6-6.6a1.5 1.5 0 0 0-2.1-2.1L6.1 17.3l-.6 2.7z' }),
+        ],
+        size,
+      )
+    }
+
     function CloseIcon({ size }) {
       return lineIcon([h('path', { key: 'cross', d: 'M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5' })], size)
     }
@@ -1408,7 +1419,7 @@ window.__ModuleLoader__.load({
           [UI_ATTR]: 'tools',
           style: { display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, overflow: 'hidden' },
         },
-        // 眼睛固定在最左边：chip 出现或消失时它不会左右跳
+        // 两个固定按钮在最左边：chip 出现或消失时它们不会左右跳
         iconButton(
           'eye',
           snap.hidden ? '显示荧光区域' : '隐藏荧光区域（方便截屏，不删数据）',
@@ -1416,6 +1427,17 @@ window.__ModuleLoader__.load({
           () => store.toggleHidden(),
           snap.hidden,
         ),
+        iconButton('edithere', '用 EditHere 截图标注（唤起它的截图）', h(EditHereIcon, { size: 16 }), () => {
+          void fetch('/dsh-anchor/edithere', { method: 'POST' })
+            .then((response) => response.json())
+            .then((payload) => {
+              if (payload.ok !== true) throw new Error(payload.error ?? '启动失败')
+            })
+            .catch((error) => {
+              console.warn('[dsh-anchor] edithere failed', error)
+              window.alert(`没能唤起 EditHere：${String(error && error.message ? error.message : error)}`)
+            })
+        }, false),
         ...snap.chips.map((chip) =>
           h(
             'span',

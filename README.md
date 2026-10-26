@@ -52,6 +52,7 @@ dsh plugin --profile desktop remove dsh-anchor
 | 点引用条上的 `↓` | 去到这次提问对应的回答 |
 | 点引用条上的 `✕` | 结束这处追问（痕迹转浅） |
 | 点工具行的眼睛图标 | 隐藏所有荧光，方便截屏（不删数据） |
+| 点工具行的 EditHere 图标 | 唤起 EditHere 截图标注（装了才有用） |
 | 点已问过的荧光 | 弹出该处的问题，可「看答案」或再问一次 |
 
 同一处不能重复框选；想再问，点那处荧光即可。若把同一段文字重新框选一次，会用它这次的位置刷新旧锚（定位偏了的时候可以这样纠正）。
@@ -60,10 +61,11 @@ dsh plugin --profile desktop remove dsh-anchor
 
 装在别人机器上时，这个插件会：
 
-1. 在**本机**注册三个 HTTP 路由（只接受 loopback 请求），用于接收、清除当前锚点，以及给调试面板读取状态：
+1. 在**本机**注册四个 HTTP 路由（只接受 loopback 请求），用于接收、清除当前锚点，给调试面板读取状态，以及唤起 EditHere：
    - `POST /dsh-anchor/state`
    - `POST /dsh-anchor/clear`
    - `GET /dsh-anchor/debug`（只读，供调试面板显示「这一轮注入了什么」）
+   - `POST /dsh-anchor/edithere`（仅启动已安装的 EditHere 截图，不读取、不转存任何标注结果）
 2. **每轮对话往系统提示里追加一小段上下文**，内容是当前锚点的位置、原文和所在段落。没有锚点时什么都不加。
 3. 在浏览器 `localStorage` 里保存锚点，键前缀 `dsh-anchor:v2:`，用于刷新后恢复。
 
