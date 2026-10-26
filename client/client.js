@@ -128,6 +128,7 @@ window.__ModuleLoader__.load({
         kind: entry.kind,
         quote: entry.quote,
         sent: entry.sent === true,
+        offsetInBlock: entry.offsetInBlock,
         offsetIn: entry.offsetIn,
         offsetInRoot: entry.offsetInRoot,
         context: entry.context,
@@ -173,6 +174,7 @@ window.__ModuleLoader__.load({
           scope: null,
           element: null,
           // 消息内偏移：容器找回来之后靠它挑「是这一条消息里的哪一处」
+          offsetInBlock: typeof entry.offsetInBlock === 'number' ? entry.offsetInBlock : -1,
           offsetIn: typeof entry.offsetIn === 'number' ? entry.offsetIn : -1,
           offsetInRoot: typeof entry.offsetInRoot === 'number' ? entry.offsetInRoot : -1,
           context: typeof entry.context === 'string' ? entry.context : '',
@@ -428,6 +430,8 @@ window.__ModuleLoader__.load({
       const byId = entry.messageId === undefined || entry.messageId === '' ? null : messageElementById(root, entry.messageId)
       if (live(entry.element)) {
         container = entry.element
+        // 段落还在：用段落内偏移，能分开同一段里的多个同名字
+        target = typeof entry.offsetInBlock === 'number' ? entry.offsetInBlock : -1
       } else if (byId !== null) {
         container = byId
         // 同一条消息的字符偏移是基于整条消息算的，容器就是它，直接用
@@ -529,6 +533,7 @@ window.__ModuleLoader__.load({
         sent: false,
         scope: anchor?.scope ?? null,
         element: anchor?.block instanceof Element ? anchor.block : null,
+        offsetInBlock: typeof anchor?.offsetInBlock === 'number' ? anchor.offsetInBlock : -1,
         offsetIn: typeof anchor?.offsetIn === 'number' ? anchor.offsetIn : -1,
         offsetInRoot: typeof anchor?.offsetInRoot === 'number' ? anchor.offsetInRoot : -1,
         context: typeof anchor?.context === 'string' ? anchor.context : '',
@@ -586,6 +591,7 @@ window.__ModuleLoader__.load({
         sent: true,
         scope: chip.scope,
         element: chip.element ?? null,
+        offsetInBlock: chip.offsetInBlock,
         offsetIn: chip.offsetIn,
         offsetInRoot: chip.offsetInRoot,
         context: chip.context,
@@ -620,6 +626,7 @@ window.__ModuleLoader__.load({
         sent: entry.sent === true,
         scope: entry.scope,
         element: entry.element ?? null,
+        offsetInBlock: entry.offsetInBlock,
         offsetIn: entry.offsetIn,
         offsetInRoot: entry.offsetInRoot,
         context: entry.context,
@@ -1083,17 +1090,21 @@ window.__ModuleLoader__.load({
       if (rect.width === 0 && rect.height === 0) return null
       if (selectionOverlapsAnchor(scope, range)) return null
       const scopeEl = messageScopeOf(anchorEl, scope)
+      const block = blockOf(anchorEl)
       return {
         text,
         rect,
         scope: scopeEl,
+        block,
+        // 三个偏移各有用途：段落内、消息内、全文。
+        // 段落内偏移能分开「同一段里的两个同名字」，这是上下文打分做不到的。
+        offsetInBlock: textOffsetOf(block, range.startContainer, range.startOffset),
         offsetIn: textOffsetOf(scopeEl, range.startContainer, range.startOffset),
         offsetInRoot: textOffsetOf(scope, range.startContainer, range.startOffset),
         context: blockTextOf(anchorEl),
         position: describePosition(range.startContainer, scopeEl, scope),
         messageIndex: messageIndexOf(scopeEl),
         messageId: messageIdOf(scopeEl),
-        block: blockOf(anchorEl),
       }
     }
 
