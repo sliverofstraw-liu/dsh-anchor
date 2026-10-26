@@ -49,8 +49,8 @@ window.__ModuleLoader__.load({
      * 引用条与荧光共用的强调色：嫩酸绿 #DBEA80 = rgb(219, 234, 128)。
      * 荧光用它，边框用深一档的同色系，免得在浅色背景上看不清。
      */
-    const ACCENT_RGB = '219, 234, 128'
-    const ACCENT_EDGE_RGB = '170, 190, 66'
+    const ACCENT_RGB = '185, 207, 74'
+    const ACCENT_EDGE_RGB = '136, 156, 36'
 
     const STORAGE_PREFIX = 'dsh-anchor:v2:'
     const HIDDEN_KEY = 'dsh-anchor:v2:hidden'
@@ -872,9 +872,9 @@ window.__ModuleLoader__.load({
         const style = document.createElement('style')
         style.setAttribute(UI_ATTR, 'style')
         style.textContent = [
-          `::highlight(${HL_ASKING}){background-color:rgba(${ACCENT_RGB},0.42)}`,
-          `::highlight(${HL_ASKED}){background-color:rgba(${ACCENT_RGB},0.16)}`,
-          `::highlight(${HL_FLASH}){background-color:rgba(${ACCENT_EDGE_RGB},0.6)}`,
+          `::highlight(${HL_ASKING}){background-color:rgba(${ACCENT_RGB},0.5)}`,
+          `::highlight(${HL_ASKED}){background-color:rgba(${ACCENT_RGB},0.22)}`,
+          `::highlight(${HL_FLASH}){background-color:rgba(${ACCENT_EDGE_RGB},0.72)}`,
         ].join('')
         document.head.appendChild(style)
       } catch (error) {
@@ -1022,9 +1022,9 @@ window.__ModuleLoader__.load({
       return h(
         React.Fragment,
         null,
-        ...rects.asked.map((rect, index) => paintRect(rect, `rgba(${ACCENT_RGB},0.16)`, `asked-${index}`)),
-        ...rects.asking.map((rect, index) => paintRect(rect, `rgba(${ACCENT_RGB},0.42)`, `asking-${index}`)),
-        ...rects.flash.map((rect, index) => paintRect(rect, `rgba(${ACCENT_EDGE_RGB},0.6)`, `flash-${index}`)),
+        ...rects.asked.map((rect, index) => paintRect(rect, `rgba(${ACCENT_RGB},0.22)`, `asked-${index}`)),
+        ...rects.asking.map((rect, index) => paintRect(rect, `rgba(${ACCENT_RGB},0.5)`, `asking-${index}`)),
+        ...rects.flash.map((rect, index) => paintRect(rect, `rgba(${ACCENT_EDGE_RGB},0.72)`, `flash-${index}`)),
       )
     }
     //#endregion
@@ -1331,8 +1331,8 @@ window.__ModuleLoader__.load({
         height: 24,
         padding: '0 2px 0 6px',
         borderRadius: 8,
-        border: `1px solid rgba(${ACCENT_EDGE_RGB},0.42)`,
-        background: active ? `rgba(${ACCENT_RGB},0.4)` : `rgba(${ACCENT_RGB},0.2)`,
+        border: `1px solid rgba(${ACCENT_EDGE_RGB},0.55)`,
+        background: active ? `rgba(${ACCENT_RGB},0.5)` : `rgba(${ACCENT_RGB},0.26)`,
         fontSize: 12,
         lineHeight: '20px',
       }
