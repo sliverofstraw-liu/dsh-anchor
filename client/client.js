@@ -1234,19 +1234,8 @@ window.__ModuleLoader__.load({
           {
             type: 'button',
             style: buttonStyle,
-            onClick: act(() =>
-              store.addChip({
-                quote: text,
-                scope: bar.scope,
-                block: bar.block,
-                offsetIn: bar.offsetIn,
-                offsetInRoot: bar.offsetInRoot,
-                context: bar.context,
-                position: bar.position,
-                messageIndex: bar.messageIndex,
-                messageId: bar.messageId,
-              }),
-            ),
+            // 整包把选区的信息传下去：漏掉任何一个偏移都会让定位退化
+            onClick: act(() => store.addChip({ ...bar, quote: text })),
           },
           '提问',
         ),
