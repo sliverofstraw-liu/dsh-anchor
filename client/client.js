@@ -514,12 +514,40 @@ window.__ModuleLoader__.load({
     //#endregion
 
     //#region store actions
+    /** 用一次新的选中位置刷新一条已有锚点。 */
+    function reposition(entry, anchor) {
+      entry.scope = anchor?.scope ?? null
+      entry.element = anchor?.block instanceof Element ? anchor.block : null
+      entry.offsetInBlock = typeof anchor?.offsetInBlock === 'number' ? anchor.offsetInBlock : -1
+      entry.offsetIn = typeof anchor?.offsetIn === 'number' ? anchor.offsetIn : -1
+      entry.offsetInRoot = typeof anchor?.offsetInRoot === 'number' ? anchor.offsetInRoot : -1
+      entry.context = typeof anchor?.context === 'string' ? anchor.context : ''
+      entry.position = typeof anchor?.position === 'string' ? anchor.position : ''
+      entry.messageIndex = typeof anchor?.messageIndex === 'number' ? anchor.messageIndex : -1
+      entry.messageId = typeof anchor?.messageId === 'string' ? anchor.messageId : ''
+    }
+
     function addChip(anchor, kind) {
       const text = String(anchor?.quote || '').trim()
       if (text === '') return
       const existing = state.chips.find((chip) => chip.quote === text)
       if (existing !== undefined) {
+        // 再次选中同一段文字：用这次的位置刷新旧锚。
+        // 只闪一下不刷新的话，旧锚里存的偏移永远不会更新——
+        // 定位逻辑改好之后，已有的错锚会一直错下去。
+        reposition(existing, anchor)
+        emit()
         flash(existing.id)
+        return
+      }
+      const askedIndex = state.asked.findIndex((entry) => entry.quote === text)
+      if (askedIndex >= 0) {
+        const [entry] = state.asked.splice(askedIndex, 1)
+        reposition(entry, anchor)
+        if (state.chips.length < MAX_CHIPS) state.chips.push(entry)
+        else state.asked.push(entry)
+        emit()
+        flash(entry.id)
         return
       }
       if (state.chips.length >= MAX_CHIPS) {
