@@ -128,6 +128,7 @@ window.__ModuleLoader__.load({
         kind: entry.kind,
         quote: entry.quote,
         sent: entry.sent === true,
+        offsetIn: entry.offsetIn,
         offsetInRoot: entry.offsetInRoot,
         context: entry.context,
         position: entry.position,
@@ -164,7 +165,8 @@ window.__ModuleLoader__.load({
           sent: entry.sent === true,
           scope: null,
           element: null,
-          offsetIn: -1,
+          // 消息内偏移：容器找回来之后靠它挑「是这一条消息里的哪一处」
+          offsetIn: typeof entry.offsetIn === 'number' ? entry.offsetIn : -1,
           offsetInRoot: typeof entry.offsetInRoot === 'number' ? entry.offsetInRoot : -1,
           context: typeof entry.context === 'string' ? entry.context : '',
           position: typeof entry.position === 'string' ? entry.position : '',
@@ -306,18 +308,28 @@ window.__ModuleLoader__.load({
       return hits
     }
 
-    /** 候选命中像不像原来那一处：比对引用前后的文字。 */
+    /**
+     * 候选命中像不像原来那一处：比对引用前后的文字。
+     *
+     * 引用可能在这段上下文里出现多次（单字选择尤其如此），所以要把上下文里
+     * 每一处都试一遍取最高分——只比对第一处会让短引用直接失效。
+     */
     function contextScore(text, hit, entry) {
       const context = compress(entry.context)
       const quote = compress(entry.quote)
       if (context === '' || quote === '') return 0
-      const at = context.indexOf(quote)
-      if (at < 0) return 0
-      const before = context.slice(Math.max(0, at - 24), at)
-      const after = context.slice(at + quote.length, at + quote.length + 24)
       const actualBefore = compress(text.slice(Math.max(0, hit.startOffset - 48), hit.startOffset))
       const actualAfter = compress(text.slice(hit.endOffset, hit.endOffset + 48))
-      return commonSuffix(before, actualBefore) + commonPrefix(after, actualAfter)
+      let best = 0
+      let at = context.indexOf(quote)
+      while (at >= 0) {
+        const before = context.slice(Math.max(0, at - 24), at)
+        const after = context.slice(at + quote.length, at + quote.length + 24)
+        const score = commonSuffix(before, actualBefore) + commonPrefix(after, actualAfter)
+        if (score > best) best = score
+        at = context.indexOf(quote, at + 1)
+      }
+      return best
     }
 
     function textOffsetOf(container, node, offset) {
@@ -411,6 +423,8 @@ window.__ModuleLoader__.load({
         container = entry.element
       } else if (byId !== null) {
         container = byId
+        // 同一条消息的字符偏移是基于整条消息算的，容器就是它，直接用
+        target = typeof entry.offsetIn === 'number' ? entry.offsetIn : -1
       } else if (live(entry.scope)) {
         container = entry.scope
         target = typeof entry.offsetIn === 'number' ? entry.offsetIn : -1
@@ -426,9 +440,12 @@ window.__ModuleLoader__.load({
       if (needle.length > 12) attempts.push(12)
 
       /**
-       * 在一个容器里按「整段 → 前缀」依次尝试，命中多个时用上下文/偏移挑一个。
-       * @param scope 在哪个容器里找
-       * @param strict 是否要求上下文必须足够吻合（全文兜底时为 true：宁可标不出来，也不标错地方）
+       * 在一个容器里按「整段 → 前缀」依次尝试，命中多个时挑一个。
+       *
+       * 挑法分两种：
+       * - 知道容器（消息 / 段落）：**偏移最可信**。消息生成完就不再变，
+       *   同一条消息里重复的字靠「离原始偏移最近」几乎不会错；
+       * - 只有全文：用上下文吻合度，对不上就不猜。
        */
       const search = (scope, strict) => {
         for (const length of attempts) {
@@ -436,27 +453,39 @@ window.__ModuleLoader__.load({
           if (hits.length === 0) continue
           let chosen = hits[0]
           if (hits.length > 1) {
-            let bestScore = -1
-            let bestHit = null
-            for (const hit of hits) {
-              const score = contextScore(hit.data.text, hit, entry)
-              if (score > bestScore) {
-                bestScore = score
-                bestHit = hit
-              }
-            }
-            if (bestHit !== null && bestScore >= (strict ? MIN_CONTEXT_MATCH : 1)) {
-              chosen = bestHit
-            } else if (strict) {
-              // 全文里有多处同名、上下文又对不上：判定失败，不猜
-              return null
-            } else if (target >= 0) {
+            const knownContainer = scope !== root
+            if (knownContainer && target >= 0) {
               let best = Number.POSITIVE_INFINITY
               for (const hit of hits) {
                 const distance = Math.abs(hit.startOffset - target)
                 if (distance < best) {
                   best = distance
                   chosen = hit
+                }
+              }
+            } else {
+              let bestScore = -1
+              let bestHit = null
+              for (const hit of hits) {
+                const score = contextScore(hit.data.text, hit, entry)
+                if (score > bestScore) {
+                  bestScore = score
+                  bestHit = hit
+                }
+              }
+              if (bestHit !== null && bestScore >= (strict ? MIN_CONTEXT_MATCH : 1)) {
+                chosen = bestHit
+              } else if (strict) {
+                // 全文里有多处同名、上下文又对不上：判定失败，不猜
+                return null
+              } else if (target >= 0) {
+                let best = Number.POSITIVE_INFINITY
+                for (const hit of hits) {
+                  const distance = Math.abs(hit.startOffset - target)
+                  if (distance < best) {
+                    best = distance
+                    chosen = hit
+                  }
                 }
               }
             }
@@ -766,6 +795,70 @@ window.__ModuleLoader__.load({
       return rects
     }
 
+    //#region css highlights
+    /**
+     * 底色优先交给浏览器的 CSS Custom Highlight：`::highlight()` 直接画在文字上，
+     * 滚动时跟着文字一起动，不存在「矩形追不上滚动」的拖尾。
+     *
+     * 只有浏览器不支持时才退回按矩形画块（那条路每帧都要重新量位置）。
+     */
+    const HL_ASKING = 'dsh-anchor-asking'
+    const HL_ASKED = 'dsh-anchor-asked'
+    const HL_FLASH = 'dsh-anchor-flash'
+    let highlightStyleReady = false
+
+    function supportsHighlights() {
+      return typeof CSS !== 'undefined' && CSS.highlights !== undefined && typeof Highlight === 'function'
+    }
+
+    function ensureHighlightStyle() {
+      if (highlightStyleReady) return
+      highlightStyleReady = true
+      try {
+        const style = document.createElement('style')
+        style.setAttribute(UI_ATTR, 'style')
+        style.textContent = [
+          `::highlight(${HL_ASKING}){background-color:rgba(255,183,43,0.36)}`,
+          `::highlight(${HL_ASKED}){background-color:rgba(255,183,43,0.16)}`,
+          `::highlight(${HL_FLASH}){background-color:rgba(255,140,0,0.52)}`,
+        ].join('')
+        document.head.appendChild(style)
+      } catch (error) {
+        console.warn('[dsh-anchor] highlight style failed', error)
+      }
+    }
+
+    /** 把当前锚点重新注册成高亮；成功返回 true（调用方就不用再画矩形了）。 */
+    function paintHighlights() {
+      if (!supportsHighlights()) return false
+      const root = document.querySelector(TRANSCRIPT)
+      if (root === null) return false
+      ensureHighlightStyle()
+      const build = (entries) => {
+        const highlight = new Highlight()
+        if (!isHidden()) {
+          for (const entry of entries) {
+            const range = locateEntry(root, entry)
+            if (range !== null) highlight.add(range)
+          }
+        }
+        return highlight
+      }
+      try {
+        CSS.highlights.set(HL_ASKING, build(state.chips))
+        CSS.highlights.set(HL_ASKED, build(state.asked))
+        const flash = new Highlight()
+        // 隐藏只关常驻两层；跳转闪烁照旧要看得见
+        if (flashRange !== null) flash.add(flashRange)
+        CSS.highlights.set(HL_FLASH, flash)
+      } catch (error) {
+        console.warn('[dsh-anchor] highlight paint failed', error)
+        return false
+      }
+      return true
+    }
+    //#endregion
+
     /** 元素的可见矩形；包装层没有布局盒子时退到第一个有盒子的子元素。 */
     function visibleRect(element) {
       const own = element.getBoundingClientRect()
@@ -809,8 +902,10 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * 底色层：按 Range 的矩形画半透明块（不用 `::highlight()`，那条路坏起来没有声音）。
-     * 顺序是「问过」在下、「正在问」在上、跳转闪烁最上。
+     * 底色层。
+     *
+     * 优先走 `paintHighlights()`（CSS Custom Highlight，画在文字上，滚动手感是原生的）；
+     * 浏览器不支持时才退回按矩形画块——那条路每帧都要重量位置，快速滚动会拖尾。
      */
     function OverlayLayer() {
       const [rects, setRects] = React.useState({ asking: [], asked: [], flash: [] })
@@ -822,6 +917,11 @@ window.__ModuleLoader__.load({
           try {
             if (pendingQuestionId !== null) tagPendingQuestion()
             retagQuestionsThrottled()
+            // 浏览器能直接画在文字上：不用量矩形，也不用跟着滚动重绘
+            if (paintHighlights()) {
+              setRects((current) => (current.asking.length + current.asked.length + current.flash.length === 0 ? current : { asking: [], asked: [], flash: [] }))
+              return
+            }
             const root = document.querySelector(TRANSCRIPT)
             const next =
               root === null
@@ -1115,37 +1215,6 @@ window.__ModuleLoader__.load({
     }
     //#endregion
 
-    //#region point anchor
-    /** 不选字时，用视口里光标所在的那一段当锚点。 */
-    function capturePointAnchor() {
-      const root = document.querySelector(TRANSCRIPT)
-      if (root === null) return null
-      const box = root.getBoundingClientRect()
-      const x = box.left + box.width / 2
-      const y = box.top + Math.min(Math.max(box.height * 0.45, 80), Math.max(box.height - 80, 80))
-      if (typeof document.caretRangeFromPoint !== 'function') return null
-      const caret = document.caretRangeFromPoint(x, y)
-      if (caret === null) return null
-      const element = elementOf(caret.startContainer)
-      if (element === null || element.closest(TRANSCRIPT) === null) return null
-      const block = blockOf(element)
-      const text = (block.textContent || '').replace(/\s+/g, ' ').trim()
-      if (text === '') return null
-      const scopeEl = messageScopeOf(block, root)
-      return {
-        quote: text.slice(0, 80),
-        scope: scopeEl,
-        block,
-        offsetIn: textOffsetOf(scopeEl, block, 0),
-        offsetInRoot: textOffsetOf(root, block, 0),
-        context: text.slice(0, 400),
-        position: describePosition(block, scopeEl, root),
-        messageIndex: messageIndexOf(scopeEl),
-        messageId: messageIdOf(scopeEl),
-      }
-    }
-    //#endregion
-
     //#region icons
     function lineIcon(children, size) {
       const px = typeof size === 'number' ? size : 16
@@ -1299,17 +1368,7 @@ window.__ModuleLoader__.load({
           [UI_ATTR]: 'tools',
           style: { display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, overflow: 'hidden' },
         },
-        // 两个固定按钮在最左边：chip 出现或消失时它们不会左右跳
-        iconButton(
-          'pin',
-          '不选字，就按当前读到的地方问',
-          h(PinIcon, { size: 16 }),
-          () => {
-            const anchor = capturePointAnchor()
-            if (anchor !== null) addChip(anchor, 'point')
-          },
-          false,
-        ),
+        // 眼睛固定在最左边：chip 出现或消失时它不会左右跳
         iconButton(
           'eye',
           snap.hidden ? '显示荧光区域' : '隐藏荧光区域（方便截屏，不删数据）',
@@ -1614,6 +1673,15 @@ window.__ModuleLoader__.load({
     //#endregion
 
     //#region debug panel
+    /** 当前底色走的是哪条路：CSS 高亮（画在文字上）还是矩形（跟随滚动重画）。 */
+    function highlightReport() {
+      if (!supportsHighlights()) return '矩形（浏览器不支持 CSS 高亮）'
+      const asking = CSS.highlights.get(HL_ASKING)
+      const asked = CSS.highlights.get(HL_ASKED)
+      const total = (asking === undefined ? 0 : asking.size) + (asked === undefined ? 0 : asked.size)
+      return `CSS 高亮 · 已注册 ${total} 段 · 样式 ${highlightStyleReady ? '已注入' : '未注入'}`
+    }
+
     /** 存档状态：会话键、键是否存在、长度；排查「重启后丢了」用。 */
     function storageReport() {
       const key = `${STORAGE_PREFIX}${activeKey}`
@@ -1743,6 +1811,7 @@ window.__ModuleLoader__.load({
           },
           `锚 ${state.chips.length} 条 · 痕迹 ${state.asked.length} 条 · 提问记录 ${questionRecords.size} 条 · 已贴标记 ${document.querySelectorAll(`[${Q_TAG}]`).length} 个\n` +
             `存档 ${storageReport()}\n` +
+            `底色 ${highlightReport()}\n` +
             `定位 ${located === '' ? '（暂无锚点）' : located}`,
         ),
         error !== '' ? h('div', { style: { color: '#c0392b' } }, error) : null,
