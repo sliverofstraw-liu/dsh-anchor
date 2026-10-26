@@ -139,9 +139,16 @@ window.__ModuleLoader__.load({
 
     function persist() {
       if (activeKey === '') return
+      const key = `${STORAGE_PREFIX}${activeKey}`
       try {
+        // 全空就不写：否则清空之后立刻又被写回一份空记录，
+        // 存档那一栏会一直显示「有 N 字符」，看着像没清掉。
+        if (state.chips.length === 0 && state.asked.length === 0 && questionRecords.size === 0) {
+          window.localStorage.removeItem(key)
+          return
+        }
         window.localStorage.setItem(
-          `${STORAGE_PREFIX}${activeKey}`,
+          key,
           JSON.stringify({
             chips: state.chips.map(persistable),
             asked: state.asked.map(persistable),
@@ -655,7 +662,12 @@ window.__ModuleLoader__.load({
       questionRecords.clear()
       pendingQuestionId = null
       state = bucketOf(activeKey)
+      // 记录没了，之前打在用户消息上的标记也要摘掉，否则面板会一直数着它们
       try {
+        const root = document.querySelector(TRANSCRIPT)
+        if (root !== null) {
+          for (const node of root.querySelectorAll(`[${Q_TAG}]`)) node.removeAttribute(Q_TAG)
+        }
         window.localStorage.removeItem(`${STORAGE_PREFIX}${activeKey}`)
       } catch {
         /* 清不掉也能继续用 */
