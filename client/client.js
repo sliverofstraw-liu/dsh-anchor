@@ -872,9 +872,9 @@ window.__ModuleLoader__.load({
         const style = document.createElement('style')
         style.setAttribute(UI_ATTR, 'style')
         style.textContent = [
-          `::highlight(${HL_ASKING}){background-color:rgba(${ACCENT_RGB},0.62)}`,
-          `::highlight(${HL_ASKED}){background-color:rgba(${ACCENT_RGB},0.28)}`,
-          `::highlight(${HL_FLASH}){background-color:rgba(${ACCENT_EDGE_RGB},0.75)}`,
+          `::highlight(${HL_ASKING}){background-color:rgba(${ACCENT_RGB},0.42)}`,
+          `::highlight(${HL_ASKED}){background-color:rgba(${ACCENT_RGB},0.16)}`,
+          `::highlight(${HL_FLASH}){background-color:rgba(${ACCENT_EDGE_RGB},0.6)}`,
         ].join('')
         document.head.appendChild(style)
       } catch (error) {
@@ -1022,9 +1022,9 @@ window.__ModuleLoader__.load({
       return h(
         React.Fragment,
         null,
-        ...rects.asked.map((rect, index) => paintRect(rect, `rgba(${ACCENT_RGB},0.28)`, `asked-${index}`)),
-        ...rects.asking.map((rect, index) => paintRect(rect, `rgba(${ACCENT_RGB},0.62)`, `asking-${index}`)),
-        ...rects.flash.map((rect, index) => paintRect(rect, `rgba(${ACCENT_EDGE_RGB},0.75)`, `flash-${index}`)),
+        ...rects.asked.map((rect, index) => paintRect(rect, `rgba(${ACCENT_RGB},0.16)`, `asked-${index}`)),
+        ...rects.asking.map((rect, index) => paintRect(rect, `rgba(${ACCENT_RGB},0.42)`, `asking-${index}`)),
+        ...rects.flash.map((rect, index) => paintRect(rect, `rgba(${ACCENT_EDGE_RGB},0.6)`, `flash-${index}`)),
       )
     }
     //#endregion
@@ -1331,8 +1331,8 @@ window.__ModuleLoader__.load({
         height: 24,
         padding: '0 2px 0 6px',
         borderRadius: 8,
-        border: `1px solid rgba(${ACCENT_EDGE_RGB},0.55)`,
-        background: active ? `rgba(${ACCENT_RGB},0.55)` : `rgba(${ACCENT_RGB},0.28)`,
+        border: `1px solid rgba(${ACCENT_EDGE_RGB},0.42)`,
+        background: active ? `rgba(${ACCENT_RGB},0.4)` : `rgba(${ACCENT_RGB},0.2)`,
         fontSize: 12,
         lineHeight: '20px',
       }
