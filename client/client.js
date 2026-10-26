@@ -45,6 +45,13 @@ window.__ModuleLoader__.load({
     const Q_TAG = 'data-dsh-anchor-q'
     const NONE_TAG = '~none'
 
+    /**
+     * 引用条与荧光共用的强调色：嫩酸绿 #DBEA80 = rgb(219, 234, 128)。
+     * 荧光用它，边框用深一档的同色系，免得在浅色背景上看不清。
+     */
+    const ACCENT_RGB = '219, 234, 128'
+    const ACCENT_EDGE_RGB = '170, 190, 66'
+
     const STORAGE_PREFIX = 'dsh-anchor:v2:'
     const HIDDEN_KEY = 'dsh-anchor:v2:hidden'
 
@@ -865,9 +872,9 @@ window.__ModuleLoader__.load({
         const style = document.createElement('style')
         style.setAttribute(UI_ATTR, 'style')
         style.textContent = [
-          `::highlight(${HL_ASKING}){background-color:rgba(255,183,43,0.36)}`,
-          `::highlight(${HL_ASKED}){background-color:rgba(255,183,43,0.16)}`,
-          `::highlight(${HL_FLASH}){background-color:rgba(255,140,0,0.52)}`,
+          `::highlight(${HL_ASKING}){background-color:rgba(${ACCENT_RGB},0.62)}`,
+          `::highlight(${HL_ASKED}){background-color:rgba(${ACCENT_RGB},0.28)}`,
+          `::highlight(${HL_FLASH}){background-color:rgba(${ACCENT_EDGE_RGB},0.75)}`,
         ].join('')
         document.head.appendChild(style)
       } catch (error) {
@@ -1015,9 +1022,9 @@ window.__ModuleLoader__.load({
       return h(
         React.Fragment,
         null,
-        ...rects.asked.map((rect, index) => paintRect(rect, 'rgba(255,183,43,0.16)', `asked-${index}`)),
-        ...rects.asking.map((rect, index) => paintRect(rect, 'rgba(255,183,43,0.36)', `asking-${index}`)),
-        ...rects.flash.map((rect, index) => paintRect(rect, 'rgba(255,140,0,0.52)', `flash-${index}`)),
+        ...rects.asked.map((rect, index) => paintRect(rect, `rgba(${ACCENT_RGB},0.28)`, `asked-${index}`)),
+        ...rects.asking.map((rect, index) => paintRect(rect, `rgba(${ACCENT_RGB},0.62)`, `asking-${index}`)),
+        ...rects.flash.map((rect, index) => paintRect(rect, `rgba(${ACCENT_EDGE_RGB},0.75)`, `flash-${index}`)),
       )
     }
     //#endregion
@@ -1324,8 +1331,8 @@ window.__ModuleLoader__.load({
         height: 24,
         padding: '0 2px 0 6px',
         borderRadius: 8,
-        border: '1px solid rgba(255,183,43,0.45)',
-        background: active ? 'rgba(255,183,43,0.18)' : 'rgba(255,183,43,0.08)',
+        border: `1px solid rgba(${ACCENT_EDGE_RGB},0.55)`,
+        background: active ? `rgba(${ACCENT_RGB},0.55)` : `rgba(${ACCENT_RGB},0.28)`,
         fontSize: 12,
         lineHeight: '20px',
       }
@@ -1445,7 +1452,7 @@ window.__ModuleLoader__.load({
               key: chip.id,
               style: {
                 ...chipStyle(flashing === chip.id),
-                outline: flashing === chip.id ? '2px solid rgba(255,183,43,0.55)' : 'none',
+                outline: flashing === chip.id ? `2px solid rgba(${ACCENT_EDGE_RGB},0.85)` : 'none',
                 transition: 'outline 120ms ease, background 120ms ease',
               },
             },
